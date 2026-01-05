@@ -1,0 +1,98 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin - Tarsus Wall</title>
+  <link rel="stylesheet" href="./style.css" />
+  <style>
+    body{ background:#0f0f10; }
+    .wrap{ max-width:720px; margin:0 auto; padding:20px; }
+    .card{
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.06);
+      padding: 16px;
+    }
+    label{ display:block; font-size:13px; color:rgba(255,255,255,0.8); margin-bottom:6px; }
+    input{
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(0,0,0,0.18);
+      color: white;
+      font-size: 16px;
+      outline: none;
+    }
+    button{
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.10);
+      color: white;
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .danger{
+      background: rgba(255, 60, 60, 0.18);
+      border-color: rgba(255, 80, 80, 0.35);
+    }
+    .msg{ margin-top:10px; min-height:22px; color:rgba(255,255,255,0.85); font-size:14px; }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="row" style="justify-content:space-between;margin-bottom:12px;">
+      <span class="badge">Admin</span>
+      <span class="badge" id="status">Connecting…</span>
+    </div>
+
+    <div class="card">
+      <label>Admin Key</label>
+      <input id="key" type="password" placeholder="Enter admin key" autocomplete="off" />
+
+
+      <div class="row" style="margin-top:12px;">
+        <button class="danger" id="clearBtn">Clear All Tiles</button>
+      </div>
+
+      <div class="msg" id="msg"></div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const statusEl = document.getElementById("status");
+    const msgEl = document.getElementById("msg");
+    const keyEl = document.getElementById("key");
+
+    const socket = io();
+    socket.on("connect", () => statusEl.textContent = "Connected");
+    socket.on("disconnect", () => statusEl.textContent = "Disconnected");
+
+    socket.on("admin:ok", ({ message }) => {
+      msgEl.textContent = "✅ " + (message || "Done.");
+    });
+
+    socket.on("admin:error", ({ message }) => {
+      msgEl.textContent = "❌ " + (message || "Admin action failed.");
+    });
+
+    document.getElementById("clearBtn").onclick = () => {
+      const key = (keyEl.value || "").trim();
+      if (!key) {
+        msgEl.textContent = "❌ Admin key required.";
+        return;
+      }
+      const ok = confirm("This will clear ALL tiles on the wall. Continue?");
+      if (!ok) return;
+
+      msgEl.textContent = "Clearing…";
+      keyEl.value = "";
+      socket.emit("admin:clearAll", { key });
+    };
+  </script>
+</body>
+</html>

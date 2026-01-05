@@ -132,7 +132,7 @@
           <button id="clearBtn">Clear</button>
           <div style="flex:1"></div>
 
-          <button class="danger" id="resetWallBtn">Reset Wall</button>
+        
           <button class="primary" id="submitBtn">Submit</button>
         </div>
 
@@ -262,13 +262,7 @@
       socket.emit("submission:new", { name, region, answerDataUrl });
     };
 
-    // Reset wall
-    document.getElementById("resetWallBtn").onclick = () => {
-      const ok = confirm("This will clear ALL tiles on the wall. Continue?");
-      if (!ok) return;
-      socket.emit("admin:clearAll");
-      msgEl.textContent = "🧹 Wall reset sent.";
-    };
+  
   </script>
 </body>
 </html>

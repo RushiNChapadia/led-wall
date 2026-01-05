@@ -42,6 +42,7 @@
       padding: 14px 14px 12px 14px;
       display:flex;
       flex-direction:column;
+      min-height: 0;
     }
 
     @keyframes tilePop {
@@ -79,6 +80,8 @@
 
     .answer{
       flex: 1;
+      min-height: 0;
+      overflow: hidden;
       display:flex;
       align-items:center;
       justify-content:center;
@@ -90,6 +93,7 @@
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
+      display: block;
     }
 
     .logoTile{
@@ -140,7 +144,7 @@
     const statusEl = document.getElementById("status");
     const grid = document.getElementById("grid");
 
-    // Fixed template exactly like your mock (row-major 5x4, logo in center spanning 2 rows)
+   
     // Row1: navy, teal, yellow, navy, teal
     // Row2: yellow, navy, LOGO, teal, yellow
     // Row3: navy, teal, LOGO, yellow, navy
@@ -257,9 +261,10 @@
       const dom = tileDomByIndex.get(index);
       if (!dom) return;
 
-      dom.q.textContent = data?.question || QUESTION_DEFAULT;
-      dom.nameLine.textContent = data?.name || "Full Name";
-      dom.regionLine.textContent = data?.region || "Region";
+      dom.q.textContent = QUESTION_DEFAULT;
+      
+      dom.nameLine.textContent = (data?.name || "").trim() || "Full Name";
+      dom.regionLine.textContent = (data?.region || "").trim() || "Region";
 
       // ✅ Color stays fixed from template
       applyTheme(dom.tile, dom.color);

@@ -123,7 +123,24 @@ io.on("connection", (socket) => {
     socket.emit("submission:ok", { placedAt: idx + 1 }); // 1-based for UI
   });
   // Optional admin clear (call from browser console if needed)
-  socket.on("admin:clearAll", () => {
+  const ADMIN_KEY = process.env.ADMIN_KEY || "tarsus123"; // change this
+
+io.on("connection", (socket) => {
+  socket.emit("state:init", { tiles, question: QUESTION_TEXT });
+
+  socket.on("submission:new", (payload) => {
+    // ... keep your existing submission logic as-is
+  });
+
+  // ✅ Secured admin reset
+  socket.on("admin:clearAll", (payload) => {
+    const key = (payload?.key || "").trim();
+
+    if (key !== ADMIN_KEY) {
+      socket.emit("admin:error", { message: "Invalid admin key." });
+      return;
+    }
+
     for (let i = 0; i < tiles.length; i++) {
       tiles[i] = {
         name: "",
@@ -134,8 +151,11 @@ io.on("connection", (socket) => {
         updatedAt: 0
       };
     }
+
     io.emit("state:init", { tiles, question: QUESTION_TEXT });
+    socket.emit("admin:ok", { message: "Wall cleared successfully." });
   });
+});
 });
 
 server.listen(PORT, () => {
