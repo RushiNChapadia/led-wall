@@ -130,14 +130,9 @@
 
         <div class="row" style="margin-top:12px;">
           <button id="clearBtn">Clear</button>
-          <button id="thinBtn">Thin</button>
-          <button id="thickBtn">Thick</button>
-
           <div style="flex:1"></div>
 
-          <!-- ✅ Reset wall button -->
           <button class="danger" id="resetWallBtn">Reset Wall</button>
-
           <button class="primary" id="submitBtn">Submit</button>
         </div>
 
@@ -159,6 +154,7 @@
     const regionEl = document.getElementById("region");
     const questionTextEl = document.getElementById("questionText");
 
+    // Splash logo
     const logoBox = document.getElementById("logoBox");
     const logoImg = new Image();
     logoImg.src = "./logo.png";
@@ -189,7 +185,9 @@
     ctx.lineJoin = "round";
     ctx.strokeStyle = "white";
 
-    let lineWidth = 10;
+    // ✅ Fixed medium thickness
+    const lineWidth = 10;
+
     let drawing = false;
     let last = null;
 
@@ -229,8 +227,6 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       msgEl.textContent = "";
     };
-    document.getElementById("thinBtn").onclick = () => lineWidth = 6;
-    document.getElementById("thickBtn").onclick = () => lineWidth = 14;
 
     const socket = io();
     socket.on("connect", () => statusEl.textContent = "Connected");
@@ -242,18 +238,11 @@
       }
     });
 
-    // ✅ Clear name + region after submit success
     socket.on("submission:ok", ({ placedAt }) => {
       msgEl.textContent = `✅ Submitted! Showing on tile #${placedAt}`;
-
-      // clear inputs
       nameEl.value = "";
       regionEl.value = "";
-
-      // clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // focus back to name
       nameEl.focus();
     });
 
@@ -273,7 +262,7 @@
       socket.emit("submission:new", { name, region, answerDataUrl });
     };
 
-    // ✅ Reset wall: clears all tiles
+    // Reset wall
     document.getElementById("resetWallBtn").onclick = () => {
       const ok = confirm("This will clear ALL tiles on the wall. Continue?");
       if (!ok) return;

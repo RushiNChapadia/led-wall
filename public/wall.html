@@ -38,22 +38,18 @@
       width: 384px;
       height: 240px;
       border: 2px solid rgba(0,0,0,0.35);
-      position: relative;
       overflow:hidden;
       padding: 14px 14px 12px 14px;
       display:flex;
       flex-direction:column;
     }
 
-    /* ✅ Animation when tile updates */
     @keyframes tilePop {
       0%   { transform: scale(1); filter: brightness(1); }
       35%  { transform: scale(1.03); filter: brightness(1.18); }
       100% { transform: scale(1); filter: brightness(1); }
     }
-    .tile.updated{
-      animation: tilePop 420ms ease-out;
-    }
+    .tile.updated{ animation: tilePop 420ms ease-out; }
 
     .q{
       font-size: 14px;
@@ -67,7 +63,6 @@
       text-overflow: ellipsis;
     }
 
-    /* ✅ Order: question then name then region */
     .metaLine{
       font-size: 11px;
       font-weight: 600;
@@ -97,11 +92,6 @@
       object-fit: contain;
     }
 
-    .empty{
-      font-size: 14px;
-      opacity: 0.7;
-    }
-
     .logoTile{
       grid-column: 3;
       grid-row: 2 / span 2;
@@ -112,22 +102,11 @@
       display:flex;
       align-items:center;
       justify-content:center;
-      position: relative;
       overflow:hidden;
     }
 
-    .logoTile img{
-      max-width: 78%;
-      max-height: 78%;
-      object-fit: contain;
-    }
-
-    .logoFallback{
-      font-size: 54px;
-      font-weight: 900;
-      color: var(--navy);
-      letter-spacing: 1px;
-    }
+    .logoTile img{ max-width: 78%; max-height: 78%; object-fit: contain; }
+    .logoFallback{ font-size: 54px; font-weight: 900; color: var(--navy); letter-spacing: 1px; }
 
     .statusBar{
       position: absolute;
@@ -147,44 +126,55 @@
         <span class="badge" id="status">Connecting…</span>
       </div>
 
-      <div class="grid" id="grid">
-        <div class="logoTile" id="logoTile"></div>
-      </div>
+      <div class="grid" id="grid"></div>
     </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const TILE_COUNT = 18;
-    const grid = document.getElementById("grid");
-    const statusEl = document.getElementById("status");
-    const logoTile = document.getElementById("logoTile");
+    const NAVY = "#00395B";
+    const TEAL = "#00779B";
+    const YELLOW = "#FFCB05";
+    const QUESTION_DEFAULT = "What is the 'Why' that drives you?";
 
-    // Logo
-    const logoImg = new Image();
-    logoImg.src = "./logo.png";
-    logoImg.onload = () => logoTile.appendChild(logoImg);
-    logoImg.onerror = () => {
-      const d = document.createElement("div");
-      d.className = "logoFallback";
-      d.textContent = "tarsus";
-      logoTile.appendChild(d);
-    };
+    const statusEl = document.getElementById("status");
+    const grid = document.getElementById("grid");
+
+    // Fixed template exactly like your mock (row-major 5x4, logo in center spanning 2 rows)
+    // Row1: navy, teal, yellow, navy, teal
+    // Row2: yellow, navy, LOGO, teal, yellow
+    // Row3: navy, teal, LOGO, yellow, navy
+    // Row4: teal, yellow, navy, teal, yellow
+    const CELL_TEMPLATE = [
+      { type:"tile", color:NAVY },  { type:"tile", color:TEAL },   { type:"tile", color:YELLOW }, { type:"tile", color:NAVY },  { type:"tile", color:TEAL },
+      { type:"tile", color:YELLOW },{ type:"tile", color:NAVY },   { type:"logo" },               { type:"tile", color:TEAL },  { type:"tile", color:YELLOW },
+      { type:"tile", color:NAVY },  { type:"tile", color:TEAL },   { type:"logo" },               { type:"tile", color:YELLOW },{ type:"tile", color:NAVY },
+      { type:"tile", color:TEAL },  { type:"tile", color:YELLOW }, { type:"tile", color:NAVY },   { type:"tile", color:TEAL },  { type:"tile", color:YELLOW }
+    ];
+
+    // Map the 18 tile cells to tile indexes 0..17 in order they appear in template
+    const cellToTileIndex = [];
+    let tileIdx = 0;
+    for (let i = 0; i < CELL_TEMPLATE.length; i++){
+      if (CELL_TEMPLATE[i].type === "tile"){
+        cellToTileIndex[i] = tileIdx++;
+      } else {
+        cellToTileIndex[i] = null;
+      }
+    }
 
     const tileDomByIndex = new Map();
 
-    function isYellow(hex){
-      return (hex || "").toLowerCase() === "#ffcb05";
-    }
+    function isYellow(hex){ return (hex || "").toLowerCase() === "#ffcb05"; }
 
-    function applyTileTheme(tileEl, color){
-      tileEl.style.background = color || "#00395B";
+    function applyTheme(tileEl, color){
+      tileEl.style.background = color;
 
       const lineEl = tileEl.querySelector(".line");
       const answerEl = tileEl.querySelector(".answer");
 
       if (isYellow(color)){
-        tileEl.style.color = "#00395B";
+        tileEl.style.color = NAVY;
         lineEl.style.background = "rgba(0,57,91,0.45)";
         answerEl.style.background = "rgba(255,255,255,0.35)";
       } else {
@@ -194,14 +184,14 @@
       }
     }
 
-    function makeTileDom(tileIndex){
+    function makeTileDom(index, color){
       const tile = document.createElement("div");
       tile.className = "tile";
-      tile.dataset.tileIndex = String(tileIndex);
+      tile.dataset.tileIndex = String(index);
 
       const q = document.createElement("div");
       q.className = "q";
-      q.textContent = "What is the 'Why' that drives you?";
+      q.textContent = QUESTION_DEFAULT;
 
       const nameLine = document.createElement("div");
       nameLine.className = "metaLine";
@@ -216,10 +206,6 @@
 
       const answer = document.createElement("div");
       answer.className = "answer";
-      const empty = document.createElement("div");
-      empty.className = "empty";
-      empty.textContent = "";
-      answer.appendChild(empty);
 
       tile.appendChild(q);
       tile.appendChild(nameLine);
@@ -227,18 +213,42 @@
       tile.appendChild(line);
       tile.appendChild(answer);
 
-      tileDomByIndex.set(tileIndex, { tile, q, nameLine, regionLine, answer });
-      applyTileTheme(tile, "#00395B");
+      applyTheme(tile, color);
+
+      tileDomByIndex.set(index, { tile, q, nameLine, regionLine, answer, color });
       return tile;
     }
 
-    for (let i = 0; i < TILE_COUNT; i++){
-      grid.appendChild(makeTileDom(i));
+    function makeLogoDom(){
+      const logoTile = document.createElement("div");
+      logoTile.className = "logoTile";
+      const img = new Image();
+      img.src = "./logo.png";
+      img.onload = () => logoTile.appendChild(img);
+      img.onerror = () => {
+        const d = document.createElement("div");
+        d.className = "logoFallback";
+        d.textContent = "tarsus";
+        logoTile.appendChild(d);
+      };
+      logoTile.appendChild(img);
+      return logoTile;
+    }
+
+    // Build grid exactly: 20 cells total (5x4)
+    grid.innerHTML = "";
+    for (let cell = 0; cell < CELL_TEMPLATE.length; cell++){
+      const def = CELL_TEMPLATE[cell];
+      if (def.type === "logo"){
+        grid.appendChild(makeLogoDom());
+      } else {
+        const idx = cellToTileIndex[cell];
+        grid.appendChild(makeTileDom(idx, def.color));
+      }
     }
 
     function animateTile(tileEl){
       tileEl.classList.remove("updated");
-      // force reflow so animation re-triggers every time
       void tileEl.offsetWidth;
       tileEl.classList.add("updated");
     }
@@ -247,26 +257,20 @@
       const dom = tileDomByIndex.get(index);
       if (!dom) return;
 
-      dom.q.textContent = data?.question || "What is the 'Why' that drives you?";
+      dom.q.textContent = data?.question || QUESTION_DEFAULT;
       dom.nameLine.textContent = data?.name || "Full Name";
       dom.regionLine.textContent = data?.region || "Region";
 
-      applyTileTheme(dom.tile, data?.color || "#00395B");
+      // ✅ Color stays fixed from template
+      applyTheme(dom.tile, dom.color);
 
       dom.answer.innerHTML = "";
-      if (!data?.answerDataUrl){
-        const empty = document.createElement("div");
-        empty.className = "empty";
-        empty.textContent = "";
-        dom.answer.appendChild(empty);
-        return;
-      }
+      if (!data?.answerDataUrl) return;
 
       const img = new Image();
       img.src = data.answerDataUrl;
       dom.answer.appendChild(img);
 
-      // ✅ animate on new info
       animateTile(dom.tile);
     }
 
