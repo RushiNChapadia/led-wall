@@ -1,0 +1,31 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap");
+
+:root{
+  --navy: #00395B;
+  --teal: #00779B;
+  --yellow: #FFCB05;
+
+  --white: #ffffff;
+  --black: #0b0f14;
+
+  --border: rgba(255,255,255,0.18);
+}
+
+* { box-sizing: border-box; }
+
+body{
+  margin: 0;
+  font-family: "Roboto", system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+  background: #1a1a1a;
+  color: var(--white);
+}
+
+.badge{
+  display:inline-block;
+  padding: 6px 10px;
+  border: 1px solid rgba(255,255,255,0.20);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  font-size: 12px;
+  color: rgba(255,255,255,0.85);
+}

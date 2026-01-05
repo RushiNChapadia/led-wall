@@ -1,0 +1,296 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tarsus Wall</title>
+  <link rel="stylesheet" href="./style.css" />
+  <style>
+    .stageWrap{
+      width: 100vw;
+      height: 100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: #3a3a3a;
+    }
+
+    #stage{
+      width: 1920px;
+      height: 960px;
+      transform-origin: top left;
+      box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+      background: #2f2f2f;
+      position: relative;
+    }
+
+    .grid{
+      width: 1920px;
+      height: 960px;
+      display:grid;
+      grid-template-columns: repeat(5, 384px);
+      grid-template-rows: repeat(4, 240px);
+      gap: 0;
+      position: relative;
+    }
+
+    .tile{
+      width: 384px;
+      height: 240px;
+      border: 2px solid rgba(0,0,0,0.35);
+      position: relative;
+      overflow:hidden;
+      padding: 14px 14px 12px 14px;
+      display:flex;
+      flex-direction:column;
+    }
+
+    /* ✅ Animation when tile updates */
+    @keyframes tilePop {
+      0%   { transform: scale(1); filter: brightness(1); }
+      35%  { transform: scale(1.03); filter: brightness(1.18); }
+      100% { transform: scale(1); filter: brightness(1); }
+    }
+    .tile.updated{
+      animation: tilePop 420ms ease-out;
+    }
+
+    .q{
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      line-height: 1.15;
+      margin-bottom: 10px;
+      opacity: 0.98;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ✅ Order: question then name then region */
+    .metaLine{
+      font-size: 11px;
+      font-weight: 600;
+      opacity: 0.92;
+      margin-bottom: 6px;
+    }
+
+    .line{
+      height: 2px;
+      opacity: 0.4;
+      margin: 4px 0 10px 0;
+      background: rgba(255,255,255,0.55);
+    }
+
+    .answer{
+      flex: 1;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-radius: 8px;
+      background: rgba(0,0,0,0.10);
+    }
+
+    .answer img{
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .empty{
+      font-size: 14px;
+      opacity: 0.7;
+    }
+
+    .logoTile{
+      grid-column: 3;
+      grid-row: 2 / span 2;
+      width: 384px;
+      height: 480px;
+      background: #ffffff;
+      border: 2px solid rgba(0,0,0,0.35);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position: relative;
+      overflow:hidden;
+    }
+
+    .logoTile img{
+      max-width: 78%;
+      max-height: 78%;
+      object-fit: contain;
+    }
+
+    .logoFallback{
+      font-size: 54px;
+      font-weight: 900;
+      color: var(--navy);
+      letter-spacing: 1px;
+    }
+
+    .statusBar{
+      position: absolute;
+      left: 14px;
+      top: 14px;
+      display:flex;
+      gap: 10px;
+      z-index: 5;
+    }
+  </style>
+</head>
+<body>
+  <div class="stageWrap">
+    <div id="stage">
+      <div class="statusBar">
+        <span class="badge">Wall</span>
+        <span class="badge" id="status">Connecting…</span>
+      </div>
+
+      <div class="grid" id="grid">
+        <div class="logoTile" id="logoTile"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const TILE_COUNT = 18;
+    const grid = document.getElementById("grid");
+    const statusEl = document.getElementById("status");
+    const logoTile = document.getElementById("logoTile");
+
+    // Logo
+    const logoImg = new Image();
+    logoImg.src = "./logo.png";
+    logoImg.onload = () => logoTile.appendChild(logoImg);
+    logoImg.onerror = () => {
+      const d = document.createElement("div");
+      d.className = "logoFallback";
+      d.textContent = "tarsus";
+      logoTile.appendChild(d);
+    };
+
+    const tileDomByIndex = new Map();
+
+    function isYellow(hex){
+      return (hex || "").toLowerCase() === "#ffcb05";
+    }
+
+    function applyTileTheme(tileEl, color){
+      tileEl.style.background = color || "#00395B";
+
+      const lineEl = tileEl.querySelector(".line");
+      const answerEl = tileEl.querySelector(".answer");
+
+      if (isYellow(color)){
+        tileEl.style.color = "#00395B";
+        lineEl.style.background = "rgba(0,57,91,0.45)";
+        answerEl.style.background = "rgba(255,255,255,0.35)";
+      } else {
+        tileEl.style.color = "white";
+        lineEl.style.background = "rgba(255,255,255,0.55)";
+        answerEl.style.background = "rgba(0,0,0,0.10)";
+      }
+    }
+
+    function makeTileDom(tileIndex){
+      const tile = document.createElement("div");
+      tile.className = "tile";
+      tile.dataset.tileIndex = String(tileIndex);
+
+      const q = document.createElement("div");
+      q.className = "q";
+      q.textContent = "What is the 'Why' that drives you?";
+
+      const nameLine = document.createElement("div");
+      nameLine.className = "metaLine";
+      nameLine.textContent = "Full Name";
+
+      const regionLine = document.createElement("div");
+      regionLine.className = "metaLine";
+      regionLine.textContent = "Region";
+
+      const line = document.createElement("div");
+      line.className = "line";
+
+      const answer = document.createElement("div");
+      answer.className = "answer";
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "";
+      answer.appendChild(empty);
+
+      tile.appendChild(q);
+      tile.appendChild(nameLine);
+      tile.appendChild(regionLine);
+      tile.appendChild(line);
+      tile.appendChild(answer);
+
+      tileDomByIndex.set(tileIndex, { tile, q, nameLine, regionLine, answer });
+      applyTileTheme(tile, "#00395B");
+      return tile;
+    }
+
+    for (let i = 0; i < TILE_COUNT; i++){
+      grid.appendChild(makeTileDom(i));
+    }
+
+    function animateTile(tileEl){
+      tileEl.classList.remove("updated");
+      // force reflow so animation re-triggers every time
+      void tileEl.offsetWidth;
+      tileEl.classList.add("updated");
+    }
+
+    function renderTile(index, data){
+      const dom = tileDomByIndex.get(index);
+      if (!dom) return;
+
+      dom.q.textContent = data?.question || "What is the 'Why' that drives you?";
+      dom.nameLine.textContent = data?.name || "Full Name";
+      dom.regionLine.textContent = data?.region || "Region";
+
+      applyTileTheme(dom.tile, data?.color || "#00395B");
+
+      dom.answer.innerHTML = "";
+      if (!data?.answerDataUrl){
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "";
+        dom.answer.appendChild(empty);
+        return;
+      }
+
+      const img = new Image();
+      img.src = data.answerDataUrl;
+      dom.answer.appendChild(img);
+
+      // ✅ animate on new info
+      animateTile(dom.tile);
+    }
+
+    function fitStage(){
+      const stage = document.getElementById("stage");
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const scale = Math.min(vw / 1920, vh / 960);
+      stage.style.transform = `scale(${scale})`;
+    }
+    window.addEventListener("resize", fitStage);
+    fitStage();
+
+    const socket = io();
+    socket.on("connect", () => statusEl.textContent = "Connected");
+    socket.on("disconnect", () => statusEl.textContent = "Disconnected");
+
+    socket.on("state:init", ({ tiles }) => {
+      (tiles || []).forEach((t, i) => renderTile(i, t));
+    });
+
+    socket.on("tile:update", ({ index, tile }) => {
+      renderTile(index, tile);
+    });
+  </script>
+</body>
+</html>

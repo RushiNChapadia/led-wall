@@ -1,0 +1,285 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Tarsus iPad</title>
+  <link rel="stylesheet" href="./style.css" />
+  <style>
+    body{ background: #0f0f10; }
+    .page{ max-width: 980px; margin: 0 auto; padding: 18px; }
+    .card{ border-radius: 16px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.06); padding: 16px; }
+    .row{ display:flex; gap: 12px; flex-wrap: wrap; align-items:center; }
+    .col{ flex:1; min-width: 220px; }
+
+    label{ display:block; font-size: 13px; color: rgba(255,255,255,0.8); margin-bottom: 6px; font-weight: 500; }
+    input{
+      width: 100%;
+      padding: 12px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(0,0,0,0.18);
+      color: white;
+      font-size: 16px;
+      outline: none;
+    }
+
+    .questionBox{
+      margin-top: 10px;
+      padding: 14px;
+      border-radius: 14px;
+      background: var(--navy);
+      border: 1px solid rgba(255,255,255,0.12);
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+
+    .canvasWrap{
+      margin-top: 12px;
+      border-radius: 14px;
+      overflow:hidden;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: var(--teal);
+      touch-action: none;
+    }
+
+    canvas{ width: 100%; height: 420px; display:block; }
+
+    button{
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.10);
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    button.primary{
+      background: var(--yellow);
+      color: var(--navy);
+      border-color: rgba(255,255,255,0.20);
+      font-weight: 800;
+    }
+
+    button.danger{
+      background: rgba(255, 60, 60, 0.18);
+      border-color: rgba(255, 80, 80, 0.35);
+    }
+
+    .msg{ margin-top: 10px; min-height: 22px; color: rgba(255,255,255,0.85); font-size: 14px; }
+
+    .screen{ display:none; }
+    .screen.active{ display:block; }
+
+    .splash{ min-height: calc(100vh - 36px); display:flex; align-items:center; justify-content:center; }
+    .splashInner{
+      width: min(760px, 96vw);
+      padding: 28px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.16);
+      text-align:center;
+    }
+
+    .logoArea{ height: 180px; display:flex; align-items:center; justify-content:center; margin-bottom: 18px; }
+    .logoArea img{ max-width: 70%; max-height: 100%; object-fit: contain; }
+
+    .logoFallback{ font-size: 56px; font-weight: 900; color: var(--yellow); letter-spacing: 1px; }
+    .sub{ margin-top: 10px; color: rgba(255,255,255,0.75); font-size: 15px; line-height: 1.4; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="row" style="justify-content:space-between;margin-bottom:12px;">
+      <span class="badge">iPad Input</span>
+      <span class="badge" id="status">Connecting…</span>
+    </div>
+
+    <div class="screen active" id="splashScreen">
+      <div class="splash">
+        <div class="splashInner">
+          <div class="logoArea" id="logoBox"></div>
+          <button class="primary" id="beginBtn">Let’s Begin</button>
+          <div class="sub">Write your “Why” and submit it to the wall.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen" id="formScreen">
+      <div class="card">
+        <div class="row">
+          <div class="col">
+            <label>Full Name</label>
+            <input id="name" placeholder="Enter your name" maxlength="40"/>
+          </div>
+          <div class="col">
+            <label>Region</label>
+            <input id="region" placeholder="Enter your region" maxlength="40"/>
+          </div>
+        </div>
+
+        <div class="questionBox" id="questionText">
+          What is the 'Why' that drives you?
+        </div>
+
+        <div class="canvasWrap">
+          <canvas id="canvas"></canvas>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <button id="clearBtn">Clear</button>
+          <button id="thinBtn">Thin</button>
+          <button id="thickBtn">Thick</button>
+
+          <div style="flex:1"></div>
+
+          <!-- ✅ Reset wall button -->
+          <button class="danger" id="resetWallBtn">Reset Wall</button>
+
+          <button class="primary" id="submitBtn">Submit</button>
+        </div>
+
+        <div class="msg" id="msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const statusEl = document.getElementById("status");
+    const msgEl = document.getElementById("msg");
+
+    const splashScreen = document.getElementById("splashScreen");
+    const formScreen = document.getElementById("formScreen");
+    const beginBtn = document.getElementById("beginBtn");
+
+    const nameEl = document.getElementById("name");
+    const regionEl = document.getElementById("region");
+    const questionTextEl = document.getElementById("questionText");
+
+    const logoBox = document.getElementById("logoBox");
+    const logoImg = new Image();
+    logoImg.src = "./logo.png";
+    logoImg.onload = () => logoBox.appendChild(logoImg);
+    logoImg.onerror = () => {
+      const d = document.createElement("div");
+      d.className = "logoFallback";
+      d.textContent = "tarsus";
+      logoBox.appendChild(d);
+    };
+
+    beginBtn.onclick = () => {
+      splashScreen.classList.remove("active");
+      formScreen.classList.add("active");
+      nameEl.focus();
+    };
+
+    // Canvas
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const W = 768;
+    const H = 360;
+    canvas.width = W;
+    canvas.height = H;
+
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "white";
+
+    let lineWidth = 10;
+    let drawing = false;
+    let last = null;
+
+    function getPos(e){
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches ? e.touches[0] : null;
+      const clientX = touch ? touch.clientX : e.clientX;
+      const clientY = touch ? touch.clientY : e.clientY;
+      const x = (clientX - rect.left) * (canvas.width / rect.width);
+      const y = (clientY - rect.top) * (canvas.height / rect.height);
+      return { x, y };
+    }
+
+    function start(e){ e.preventDefault(); drawing = true; last = getPos(e); }
+    function move(e){
+      if (!drawing) return;
+      e.preventDefault();
+      const p = getPos(e);
+      ctx.lineWidth = lineWidth;
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      last = p;
+    }
+    function end(e){ if (!drawing) return; e.preventDefault(); drawing = false; last = null; }
+
+    canvas.addEventListener("touchstart", start, { passive: false });
+    canvas.addEventListener("touchmove", move, { passive: false });
+    canvas.addEventListener("touchend", end, { passive: false });
+
+    canvas.addEventListener("mousedown", start);
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", end);
+
+    document.getElementById("clearBtn").onclick = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      msgEl.textContent = "";
+    };
+    document.getElementById("thinBtn").onclick = () => lineWidth = 6;
+    document.getElementById("thickBtn").onclick = () => lineWidth = 14;
+
+    const socket = io();
+    socket.on("connect", () => statusEl.textContent = "Connected");
+    socket.on("disconnect", () => statusEl.textContent = "Disconnected");
+
+    socket.on("state:init", ({ question }) => {
+      if (typeof question === "string" && question.trim()) {
+        questionTextEl.textContent = question;
+      }
+    });
+
+    // ✅ Clear name + region after submit success
+    socket.on("submission:ok", ({ placedAt }) => {
+      msgEl.textContent = `✅ Submitted! Showing on tile #${placedAt}`;
+
+      // clear inputs
+      nameEl.value = "";
+      regionEl.value = "";
+
+      // clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // focus back to name
+      nameEl.focus();
+    });
+
+    socket.on("submission:error", ({ message }) => {
+      msgEl.textContent = `❌ ${message}`;
+    });
+
+    document.getElementById("submitBtn").onclick = () => {
+      const name = (nameEl.value || "").trim();
+      const region = (regionEl.value || "").trim();
+
+      if (!name) { msgEl.textContent = "❌ Please enter your name."; return; }
+      if (!region) { msgEl.textContent = "❌ Please enter your region."; return; }
+
+      const answerDataUrl = canvas.toDataURL("image/png");
+      msgEl.textContent = "Submitting…";
+      socket.emit("submission:new", { name, region, answerDataUrl });
+    };
+
+    // ✅ Reset wall: clears all tiles
+    document.getElementById("resetWallBtn").onclick = () => {
+      const ok = confirm("This will clear ALL tiles on the wall. Continue?");
+      if (!ok) return;
+      socket.emit("admin:clearAll");
+      msgEl.textContent = "🧹 Wall reset sent.";
+    };
+  </script>
+</body>
+</html>
