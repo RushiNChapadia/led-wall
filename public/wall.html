@@ -272,8 +272,16 @@
       dom.answer.innerHTML = "";
       if (!data?.answerDataUrl) return;
 
+      const url =
+      data?.answerImageUrl ||   // NEW field (from server now)
+      data?.image_url ||        // if you ever pass DB rows directly later
+      data?.answerDataUrl ||    // OLD field (previous versions)
+      "";
+
+      if (!url) return;
+
       const img = new Image();
-      img.src = data.answerImageUrl;
+      img.src = url;
       dom.answer.appendChild(img);
 
       animateTile(dom.tile);
