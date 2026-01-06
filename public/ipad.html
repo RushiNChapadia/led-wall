@@ -92,11 +92,7 @@
 </head>
 <body>
   <div class="page">
-    <div class="row" style="justify-content:space-between;margin-bottom:12px;">
-      <span class="badge">iPad Input</span>
-      <span class="badge" id="status">Connecting…</span>
-    </div>
-
+  
     <div class="screen active" id="splashScreen">
       <div class="splash">
         <div class="splashInner">
@@ -143,7 +139,6 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const statusEl = document.getElementById("status");
     const msgEl = document.getElementById("msg");
 
     const splashScreen = document.getElementById("splashScreen");
@@ -229,8 +224,6 @@
     };
 
     const socket = io();
-    socket.on("connect", () => statusEl.textContent = "Connected");
-    socket.on("disconnect", () => statusEl.textContent = "Disconnected");
 
     socket.on("state:init", ({ question }) => {
       if (typeof question === "string" && question.trim()) {

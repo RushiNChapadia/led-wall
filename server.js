@@ -314,21 +314,30 @@ io.on("connection", (socket) => {
   });
 
   // Reset only clears wall display, history stays
-  socket.on("admin:clearAll", () => {
-    for (let i = 0; i < TILE_COUNT; i++) {
-      tiles[i] = { name: "", region: "", question: QUESTION_TEXT, answerImageUrl: "", updatedAt: 0 };
-    }
-    io.emit("state:init", {
-      question: QUESTION_TEXT,
-      tiles: tiles.map(t => ({
-        name: t.name,
-        region: t.region,
-        question: t.question,
-        answerImageUrl: t.answerImageUrl,
-        updatedAt: t.updatedAt
-      })),
-    });
+  socket.on("admin:clearAll", (payload) => {
+  const key = (payload?.key || "").trim();
+  if (!process.env.ADMIN_KEY || key !== process.env.ADMIN_KEY) {
+    socket.emit("admin:error", { message: "Invalid admin key." });
+    return;
+  }
+
+  for (let i = 0; i < TILE_COUNT; i++) {
+    tiles[i] = { name: "", region: "", question: QUESTION_TEXT, answerImageUrl: "", updatedAt: 0 };
+  }
+
+  io.emit("state:init", {
+    question: QUESTION_TEXT,
+    tiles: tiles.map(t => ({
+      name: t.name,
+      region: t.region,
+      question: t.question,
+      answerImageUrl: t.answerImageUrl,
+      updatedAt: t.updatedAt
+    })),
   });
+
+  socket.emit("admin:ok", { message: "Wall cleared." });
+});
 });
 
 // ------------------ Start ------------------

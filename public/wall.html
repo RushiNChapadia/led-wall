@@ -125,10 +125,7 @@
 <body>
   <div class="stageWrap">
     <div id="stage">
-      <div class="statusBar">
-        <span class="badge">Wall</span>
-        <span class="badge" id="status">Connecting…</span>
-      </div>
+    
 
       <div class="grid" id="grid"></div>
     </div>
@@ -141,7 +138,6 @@
     const YELLOW = "#FFCB05";
     const QUESTION_DEFAULT = "What is the 'Why' that drives you?";
 
-    const statusEl = document.getElementById("status");
     const grid = document.getElementById("grid");
 
    
@@ -310,8 +306,7 @@
     fitStage();
 
     const socket = io();
-    socket.on("connect", () => statusEl.textContent = "Connected");
-    socket.on("disconnect", () => statusEl.textContent = "Disconnected");
+
 
     socket.on("state:init", ({ tiles }) => {
       (tiles || []).forEach((t, i) => renderTile(i, t));
