@@ -285,6 +285,10 @@
       dom.answer.appendChild(img);
 
       animateTile(dom.tile);
+      img.onerror = () => {
+        console.error("Image failed to load:", url);
+        dom.answer.innerHTML = `<div class="empty">Image failed</div>`;
+      };
     }
 
     function fitStage(){
