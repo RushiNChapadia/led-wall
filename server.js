@@ -23,6 +23,24 @@ const tiles = Array.from({ length: TILE_COUNT }, () => ({
   updatedAt: 0
 }));
 
+const { Pool } = require("pg");
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes("render.com")
+    ? { rejectUnauthorized: false }
+    : undefined,
+});
+
+app.get("/db-test", async (req, res) => {
+  try {
+    const r = await pool.query("SELECT NOW() as now");
+    res.json({ ok: true, now: r.rows[0].now });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
 function safeTrim(str, maxLen) {
   if (typeof str !== "string") return "";
   const s = str.trim();
