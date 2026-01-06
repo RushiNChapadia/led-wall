@@ -270,19 +270,27 @@
       applyTheme(dom.tile, dom.color);
 
       dom.answer.innerHTML = "";
-      if (!data?.answerDataUrl) return;
 
+      // ✅ support new + old field names
       const url =
-      data?.answerImageUrl ||   // NEW field (from server now)
-      data?.image_url ||        // if you ever pass DB rows directly later
-      data?.answerDataUrl ||    // OLD field (previous versions)
-      "";
+        data?.answerImageUrl ||   // NEW (proxy: /img/...)
+        data?.answerDataUrl ||    // OLD (base64)
+        "";
 
+      // If no url, nothing to show
       if (!url) return;
 
       const img = new Image();
+      img.onload = () => {
+        // (optional) you can animate here too if you want
+      };
+      img.onerror = () => {
+        console.error("Wall image failed to load:", url);
+      };
       img.src = url;
+
       dom.answer.appendChild(img);
+
 
       animateTile(dom.tile);
       img.onerror = () => {
