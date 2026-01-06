@@ -3,7 +3,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 
 const { Pool } = require("pg");
-const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+const { S3Client, PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
 const { v4: uuidv4 } = require("uuid");
 const ExcelJS = require("exceljs");
 
@@ -110,7 +110,7 @@ async function initDbAndRestoreWall() {
   // Restore latest submission per tile_index to refill current wall state
   const { rows } = await pool.query(`
     SELECT DISTINCT ON (tile_index)
-      tile_index, name, region, question, image_url, created_at
+      tile_index, name, region, question, image_key, image_url, created_at
     FROM submissions
     ORDER BY tile_index, created_at DESC;
   `);
@@ -137,6 +137,30 @@ async function initDbAndRestoreWall() {
 
 // ------------------ Static hosting ------------------
 app.use(express.static("public"));
+// Serve images via same-origin proxy to avoid cross-origin blocking
+app.get("/img/*", async (req, res) => {
+  try {
+    const key = req.params[0]; // everything after /img/
+    if (!key) return res.status(400).send("Missing key");
+    if (!R2_BUCKET) return res.status(500).send("Bucket not configured");
+
+    const out = await r2.send(new GetObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: key
+    }));
+
+    // Set headers
+    res.setHeader("Content-Type", out.ContentType || "image/png");
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+
+    // Stream body
+    out.Body.pipe(res);
+  } catch (e) {
+    console.error("IMG proxy error:", e);
+    res.status(404).send("Not found");
+  }
+});
+
 app.get("/health", (req, res) => res.json({ ok: true }));
 
 // ------------------ Export endpoints ------------------
@@ -250,6 +274,8 @@ io.on("connection", (socket) => {
 
       const imageUrl = `${R2_PUBLIC_BASE_URL}/${imageKey}`;
 
+      const wallImageUrl = `/img/${imageKey}`;
+
       // Save to DB (history)
       const insert = await pool.query(
         `INSERT INTO submissions (id, name, region, question, tile_index, image_key, image_url)
@@ -265,7 +291,7 @@ io.on("connection", (socket) => {
         name,
         region,
         question: QUESTION_TEXT,
-        answerImageUrl: imageUrl,
+        answerImageUrl: wallImageUrl,
         updatedAt: createdAtMs,
       };
 
@@ -275,7 +301,7 @@ io.on("connection", (socket) => {
           name,
           region,
           question: QUESTION_TEXT,
-          answerImageUrl: imageUrl,
+          answerImageUrl: wallImageUrl,
           updatedAt: createdAtMs,
         }
       });
